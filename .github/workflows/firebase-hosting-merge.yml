@@ -17,4 +17,4 @@ jobs:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MUKHAMADAZISTHOLIB_CF3E4 }}'
           channelId: live
-          projectId: mukhamadazistholib-cf3e4
+          projectId: mukhamadazistholib-a4dc0
