@@ -7,9 +7,8 @@ import { v4 as uuidv4 } from 'uuid'
 const AddReply = ({
   comment,
   setIsReply,
-  setRepId,
   replyOBJ,
-  setReplyAdded,
+  setReplyAdded, // Ensure this prop is correctly passed as a function
 }) => {
   const { currentUser } = useAuth()
   const [reply, setReply] = useState('')
@@ -17,59 +16,40 @@ const AddReply = ({
   function handleReply() {
     if (reply !== '') {
       const id = uuidv4()
-      if (comment.replies) {
-        update(ref(database, `/${comment.id}`), {
-          replies: {
-            ...comment.replies,
-            [id]: {
-              id: id,
-              content: reply,
-              createdAt: Date.now(),
-              user: {
-                uid: currentUser.uid,
-                img: currentUser.photoURL,
-                username: currentUser.displayName
-                  .replace(/[^A-Za-z]/g, '')
-                  .toLowerCase(),
-              },
-              replyTo: replyOBJ
-                ? replyOBJ.user.username
-                : comment.user.username,
-            },
-          },
-        })
-      } else {
-        update(ref(database, `/${comment.id}`), {
-          replies: {
-            [id]: {
-              id: id,
-              content: reply,
-              createdAt: Date.now(),
-              user: {
-                uid: currentUser.uid,
-                img: currentUser.photoURL,
-                username: currentUser.displayName
-                  .replace(/[^A-Za-z]/g, '')
-                  .toLowerCase(),
-              },
-              replyTo: comment.user.username,
-            },
-          },
-        })
-      }
-      setIsReply(false)
-      // setRepId('')
-      setReplyAdded(true)
+      const replyData = {
+        id: id,
+        content: reply,
+        createdAt: Date.now(),
+        user: {
+          uid: currentUser.uid,
+          img: currentUser.photoURL,
+          username: currentUser.displayName
+            .replace(/[^A-Za-z]/g, '')
+            .toLowerCase(),
+        },
+        replyTo: replyOBJ ? replyOBJ.user.username : comment.user.username,
+      };
+      const replyRef = ref(database, `/${comment.id}`);
+      
+      update(replyRef, {
+        replies: {
+          ...(comment.replies || {}),
+          [id]: replyData,
+        },
+      }).then(() => {
+        setIsReply(false);
+        if (typeof setReplyAdded === 'function') {
+          setReplyAdded(true);
+        }
+      }).catch((error) => {
+        // Handle error if needed
+        console.error('Error adding reply:', error);
+      });
     }
   }
 
   return (
     <div className='add-reply'>
-      <img
-        src={currentUser.photoURL || '../Assets/profile-img.svg'}
-        alt='profile'
-        className='profile-photo'
-      />
       <div className='textarea-wrapper'>
         <p className='replying-to'>
           Replying to <span>{comment.user.username}</span>

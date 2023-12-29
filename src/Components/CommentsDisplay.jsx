@@ -1,4 +1,4 @@
-import { onValue, ref, update } from 'firebase/database'
+import { orderByChild, onValue, ref, update, get, query } from 'firebase/database'
 import React, { useState, useEffect } from 'react'
 import { database } from '../firebase-config'
 import ScoreCounter from './ScoreCounter'
@@ -54,41 +54,66 @@ function timeSince(date) {
 }
 
 const CommentsDisplay = () => {
-  // comments from db
   const [comments, setComments] = useState([])
   const [commentsLoading, setCommentsLoading] = useState(false)
-
-  // for editing comments
   const [editComment, setEditComment] = useState('')
   const [editId, setEditId] = useState('')
   const [isEdit, setIsEdit] = useState(false)
-
-  //for deleting comments
   const [delId, setDelId] = useState('')
   const [delModal, setDelModal] = useState(false)
-
-  // for replying
   const [repId, setRepId] = useState('')
   const [isReply, setIsReply] = useState(false)
-  // const [replyAdded, setReplyAdded] = useState(false)
-
   const { currentUser, pending } = useAuth()
 
+  const authenticate = () => new Promise((resolve) => setTimeout(resolve, 15000)) // 2 seconds
+
   useEffect(() => {
-    setCommentsLoading(true)
-    onValue(ref(database), async (snapshot) => {
-      setComments([])
-      const data = await snapshot.val()
-      if (data) {
-        Object.values(data).map((comment) => {
-          setComments((oldComments) => [...oldComments, comment])
-        })
+    authenticate().then(() => {
+      const ele = document.getElementById('ipl-progress-indicator')
+      if (ele) {
+        // fade out
+        ele.classList.add('available')
+        setTimeout(() => {
+          // remove from DOM
+          ele.outerHTML = ''
+        }, 15000)
       }
-      setCommentsLoading(false)
     })
   }, [])
 
-  // handle edit
+  useEffect(() => {
+    setCommentsLoading(true);
+    onValue(ref(database), async (snapshot) => {
+      setComments([]);
+      const data = await snapshot.val();
+      if (data) {
+        const commentsArray = Object.values(data).map((comment) => {
+          return comment; // Ensure a return value from the map callback
+        });
+        setComments(commentsArray); // Set comments directly without using spread
+      }
+      setCommentsLoading(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    // Create a query to order by the timestamp field
+    const commentsRef = ref(database, '/comments');
+    const sortedCommentsQuery = query(commentsRef, orderByChild('createdAt'));
+  
+    // Retrieve the data with the sorted query
+    get(sortedCommentsQuery).then((snapshot) => {
+      if (snapshot.exists()) {
+        const commentsArray = [];
+        snapshot.forEach((childSnapshot) => {
+          commentsArray.push(childSnapshot.val());
+        });
+        // Set commentsArray to state
+        setComments(commentsArray);
+      }
+    });
+  }, []);
+
   function handleEdit(comment) {
     if (comment.id === editId || editId === '') {
       setIsEdit((prev) => !prev)
@@ -100,11 +125,7 @@ const CommentsDisplay = () => {
     setIsReply(false)
     setRepId('')
   }
-  // handle comment update textarea changes
-  // function handleChange(e) {
-  //   setEditComment(e.target.value)
-  // }
-  // handle update button
+
   function onUpdate() {
     update(ref(database, `/${editId}`), {
       content: editComment,
@@ -114,7 +135,6 @@ const CommentsDisplay = () => {
     setEditId('')
   }
 
-  // handle delete modal
   function handleDelete(comment) {
     if (comment.id === delId || delId === '') {
       setDelModal((prev) => !prev)
@@ -124,7 +144,6 @@ const CommentsDisplay = () => {
     setDelId(comment.id)
   }
 
-  // handle reply
   function handleReply(comment) {
     if (comment.id === repId || repId === '') {
       setIsReply((prev) => !prev)
@@ -147,9 +166,9 @@ const CommentsDisplay = () => {
 
   return (
     <div className='comments-container'>
-      {comments.map((comment) => {
+      {comments.slice().reverse().map((comment) => {
         return (
-          <React.Fragment>
+          <React.Fragment key={comment.id}>
             <div className='comment'>
               <ScoreCounter
                 key={uuidv4()}
@@ -159,41 +178,47 @@ const CommentsDisplay = () => {
               <div className='comment-content'>
                 <div className='comment-top'>
                   <div className='left'>
-                    <img
-                      src={
-                        comment.user.img
-                          ? comment.user.img
-                          : '../Assets/profile-img.svg'
-                      }
-                      alt='profile'
-                      className='comment-profile-img'
-                    />
+                    {comment.user && comment.user.img ? (
+                      <img
+                        src={comment.user.img}
+                        alt='profile'
+                        className='comment-profile-img'
+                      />
+                    ) : (
+                      <img
+                        src='../Assets/profile-img.svg'
+                        alt='profile'
+                        className='comment-profile-img'
+                      />
+                    )}
                     <p className='username'>
-                      {comment.user.username}
-                      {currentUser && comment.user.uid === currentUser.uid && (
-                        <span className='current-user-badge'>you</span>
-                      )}
+                      {comment.user ? comment.user.username : 'Unknown'}
+                      {currentUser && comment.user &&
+                        comment.user.uid === currentUser.uid && (
+                          <span className='current-user-badge'>you</span>
+                        )}
                     </p>
                     <p className='comment-date'>
                       {timeSince(comment.createdAt)}
                     </p>
                   </div>
                   <div className='right'>
-                    {currentUser && comment.user.uid === currentUser.uid && (
-                      <>
-                        <p className='edit' onClick={() => handleEdit(comment)}>
-                          <img src='../Assets/icon-edit.svg' alt='edit' />
-                          Edit
-                        </p>
-                        <p
-                          className='delete'
-                          onClick={() => handleDelete(comment)}
-                        >
-                          <img src='../Assets/icon-delete.svg' alt='delete' />
-                          Delete
-                        </p>
-                      </>
-                    )}
+                    {currentUser && comment.user &&
+                      comment.user.uid === currentUser.uid && (
+                        <>
+                          <p className='edit' onClick={() => handleEdit(comment)}>
+                            <img src='../Assets/icon-edit.svg' alt='edit' />
+                            Edit
+                          </p>
+                          <p
+                            className='delete'
+                            onClick={() => handleDelete(comment)}
+                          >
+                            <img src='../Assets/icon-delete.svg' alt='delete' />
+                            Delete
+                          </p>
+                        </>
+                      )}
                     <p className='reply' onClick={() => handleReply(comment)}>
                       <img src='../Assets/icon-reply.svg' alt='reply' />
                       Reply
@@ -243,7 +268,6 @@ const CommentsDisplay = () => {
                 comment={comment}
                 setRepId={setRepId}
                 setIsReply={setIsReply}
-                // setReplyAdded={setReplyAdded}
               />
             )}
             {comment.replies && (
@@ -255,15 +279,14 @@ const CommentsDisplay = () => {
                   replies={comment.replies}
                   timeSince={timeSince}
                   key={uuidv4()}
-                  // setReplyAdded={setReplyAdded}
                 />
               </details>
             )}
           </React.Fragment>
-        )
+        );
       })}
     </div>
-  )
-}
+  );
+};
 
-export default CommentsDisplay
+export default CommentsDisplay;

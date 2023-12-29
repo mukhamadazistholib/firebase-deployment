@@ -1,20 +1,20 @@
-import React, { useState } from 'react'
-import { v4 as uuidv4 } from 'uuid'
-import { FaGoogle } from 'react-icons/fa'
-import { useAuth } from '../context/AuthContext'
-import { database } from '../firebase-config'
-import { set, ref } from 'firebase/database'
+import React, { useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { FaGoogle } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
+import { database } from '../firebase-config';
+import { set, ref } from 'firebase/database';
 
 function AddComment() {
-  const { pending, currentUser, signIn, signUserOut } = useAuth()
-  const [comment, setComment] = useState('')
+  const { currentUser, signIn, signUserOut } = useAuth();
+  const [comment, setComment] = useState('');
 
   function handleSubmit() {
-    if (comment !== '') {
-      const id = uuidv4()
+    if (comment.trim() !== '') {
+      const id = uuidv4();
       set(ref(database, `/${id}`), {
         id: id,
-        content: comment,
+        content: comment, // Store comment content as entered by the user
         createdAt: Date.now(),
         user: {
           img: currentUser.photoURL,
@@ -23,12 +23,10 @@ function AddComment() {
             .toLowerCase(),
           uid: currentUser.uid,
         },
-      })
-      setComment('')
+      });
+      setComment('');
     }
   }
-
-  // if (pending) return <img src='../Assets/spinner.gif' alt='loading...' />
 
   if (!currentUser) {
     return (
@@ -40,7 +38,7 @@ function AddComment() {
           <p>Sign in to add comments, reply to comments</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -54,7 +52,7 @@ function AddComment() {
         <textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          placeholder='add a comment'
+          placeholder='write your word here'
           style={{ resize: 'none' }}
         />
         <div className='comment-btn-wrapper'>
@@ -70,7 +68,7 @@ function AddComment() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default AddComment
+export default AddComment;

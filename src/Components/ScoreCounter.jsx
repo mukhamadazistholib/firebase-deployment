@@ -32,10 +32,10 @@ function ScoreCounter({ id, votes, rep, reply, comment }) {
 
   useEffect(() => {
     if (currentUser) {
-      setDispScore(getScore(votes))
+      setDispScore(getScore(votes));
     }
-  }, [upVote, downVote])
-
+  }, [currentUser, votes]);
+ 
   function handleUpVote() {
     if (currentUser) {
       if (!upVote) {
